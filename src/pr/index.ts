@@ -3,5 +3,7 @@ export {
   createPRSystemPrompt,
   createPRUserPrompt,
   postProcessPRDescription,
+  createStructuredPRSystemPrompt,
+  parseStructuredPRResponse,
 } from './prompt.js';
-export { generatePRDescription } from './generate.js';
+export { generatePRDescription, generatePRContent } from './generate.js';

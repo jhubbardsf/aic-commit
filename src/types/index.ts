@@ -71,6 +71,13 @@ export interface PRCLIOptions {
   debug?: boolean;
   quiet?: boolean;
   json?: boolean;
+  create?: boolean;
+  open?: boolean;
+}
+
+export interface PRContent {
+  title: string;
+  body: string;
 }
 
 export interface PRGenerationResult {

@@ -19,7 +19,8 @@ import {
 } from './git/commit.js';
 import { logger, LogLevel } from './utils/logger.js';
 import { validatePatterns } from './utils/patterns.js';
-import { getPRTemplate, generatePRDescription } from './pr/index.js';
+import { getPRTemplate, generatePRDescription, generatePRContent } from './pr/index.js';
+import { validateGHCLI, checkExistingPR, createPR, needsPush, pushBranch } from './gh/index.js';
 import type { CLIOptions, PRCLIOptions } from './types/index.js';
 
 const program = new Command();
@@ -95,6 +96,8 @@ program
   .description('Generate AI-powered PR description for current branch')
   .option('-b, --base <branch>', 'Base branch to compare against', 'dev')
   .option('-d, --description <text>', 'Additional context for the AI')
+  .option('-c, --create', 'Create PR via GitHub CLI (requires gh to be installed)')
+  .option('--no-open', 'Do not open PR in browser (only with --create)')
   .option('--no-clipboard', 'Do not copy to clipboard')
   .option(
     '-x, --exclude <patterns...>',
@@ -151,11 +154,46 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
 
   logger.verbose('Starting PR description generator');
 
+  // If --create flag, validate gh CLI first (fail fast before doing AI work)
+  if (options.create) {
+    logger.progress('Validating GitHub CLI');
+    const ghValidation = await validateGHCLI();
+    if (!ghValidation.valid) {
+      logger.progressFailed('GitHub CLI validation failed');
+      throw new Error(ghValidation.error);
+    }
+    logger.progressDone('GitHub CLI ready');
+
+    // Check for existing PR
+    logger.progress('Checking for existing PR');
+    const existingPR = await checkExistingPR();
+    if (existingPR) {
+      logger.progressFailed('PR already exists');
+      throw new Error(`A PR already exists for this branch: ${existingPR}`);
+    }
+    logger.progressDone('No existing PR found');
+  }
+
   // Get repository info
   logger.progress('Getting repository information');
   const repoRoot = await getRepoRoot();
   const currentBranch = await getCurrentBranch();
   logger.progressDone(`On branch: ${currentBranch}`);
+
+  // If --create flag, push branch if needed
+  if (options.create) {
+    const branchNeedsPush = await needsPush();
+    if (branchNeedsPush) {
+      logger.progress('Pushing branch to remote');
+      try {
+        await pushBranch(currentBranch);
+        logger.progressDone('Branch pushed');
+      } catch (error) {
+        logger.progressFailed('Failed to push branch');
+        throw error;
+      }
+    }
+  }
 
   // Load configuration (reusing commit config infrastructure)
   logger.progress('Loading configuration');
@@ -240,55 +278,113 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
   const aiProvider = createAIProvider(config);
   logger.progressDone(`${config.provider} provider initialized`);
 
-  // Generate PR description
-  logger.progress('Generating PR description');
-  let prDescription;
-  try {
-    prDescription = await generatePRDescription(
-      aiProvider,
-      diffResult.diff,
-      template,
-      currentBranch,
-      options.description
-    );
-    logger.progressDone('PR description generated');
-  } catch (error) {
-    logger.progressFailed('PR description generation failed');
-    throw error;
-  }
-
-  // Output the result
-  if (options.json) {
-    const result = {
-      description: prDescription,
-      provider: config.provider,
-      model: config.model,
-      baseBranch: options.base,
-      currentBranch: currentBranch,
-      filesChanged: diffResult.files,
-      copiedToClipboard: options.clipboard,
-    };
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log('\n' + prDescription + '\n');
-  }
-
-  // Copy to clipboard
-  if (options.clipboard) {
+  // Generate PR content - use structured generation if --create, otherwise body-only
+  if (options.create) {
+    // Structured generation for PR creation (title + body)
+    logger.progress('Generating PR title and description');
+    let prContent;
     try {
-      await clipboard.write(prDescription);
-      if (!options.quiet && !options.json) {
-        logger.success('PR description copied to clipboard');
+      prContent = await generatePRContent(
+        aiProvider,
+        diffResult.diff,
+        template,
+        currentBranch,
+        options.description
+      );
+      logger.progressDone('PR content generated');
+    } catch (error) {
+      logger.progressFailed('PR content generation failed');
+      throw error;
+    }
+
+    // Show preview if not quiet
+    if (!options.quiet && !options.json) {
+      console.log('\nTitle: ' + prContent.title);
+      console.log('\n' + prContent.body + '\n');
+    }
+
+    // Create the PR via gh CLI
+    logger.progress('Creating PR on GitHub');
+    try {
+      const prResult = await createPR({
+        base: options.base,
+        title: prContent.title,
+        body: prContent.body,
+        open: options.open !== false, // Default true, --no-open sets to false
+      });
+      logger.progressDone('PR created successfully');
+
+      if (options.json) {
+        const result = {
+          title: prContent.title,
+          description: prContent.body,
+          url: prResult.url,
+          number: prResult.number,
+          provider: config.provider,
+          model: config.model,
+          baseBranch: options.base,
+          currentBranch: currentBranch,
+          filesChanged: diffResult.files,
+        };
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        logger.success(`PR created: ${prResult.url}`);
       }
     } catch (error) {
-      // Clipboard may not be available in CI environments
-      if (!options.quiet && !options.json) {
-        logger.warn('Could not copy to clipboard (clipboard may not be available)');
+      logger.progressFailed('PR creation failed');
+      throw error;
+    }
+  } else {
+    // Body-only generation (existing behavior)
+    logger.progress('Generating PR description');
+    let prDescription;
+    try {
+      prDescription = await generatePRDescription(
+        aiProvider,
+        diffResult.diff,
+        template,
+        currentBranch,
+        options.description
+      );
+      logger.progressDone('PR description generated');
+    } catch (error) {
+      logger.progressFailed('PR description generation failed');
+      throw error;
+    }
+
+    // Output the result
+    if (options.json) {
+      const result = {
+        description: prDescription,
+        provider: config.provider,
+        model: config.model,
+        baseBranch: options.base,
+        currentBranch: currentBranch,
+        filesChanged: diffResult.files,
+        copiedToClipboard: options.clipboard,
+      };
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log('\n' + prDescription + '\n');
+    }
+
+    // Copy to clipboard
+    if (options.clipboard) {
+      try {
+        await clipboard.write(prDescription);
+        if (!options.quiet && !options.json) {
+          logger.success('PR description copied to clipboard');
+        }
+      } catch (error) {
+        // Clipboard may not be available in CI environments
+        if (!options.quiet && !options.json) {
+          logger.warn('Could not copy to clipboard (clipboard may not be available)');
+        }
       }
     }
   }
 
-  logger.verbose('PR description generator completed successfully');
+  logger.verbose('PR command completed successfully');
 }
 
 async function runCLI(options: CLIOptions): Promise<void> {

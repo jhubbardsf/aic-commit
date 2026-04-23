@@ -1,6 +1,33 @@
 import OpenAI from 'openai';
 import { OpenAIProvider } from './openai.js';
 
+interface ZAIUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+  };
+}
+
+const ZAI_PRICING_PER_MILLION: Record<
+  string,
+  { input: number; output: number; cachedInput?: number }
+> = {
+  'glm-5.1': { input: 1.4, output: 4.4, cachedInput: 0.26 },
+  'glm-5': { input: 1.0, output: 3.2, cachedInput: 0.2 },
+  'glm-5-turbo': { input: 1.2, output: 4.0, cachedInput: 0.24 },
+  'glm-4.7': { input: 0.6, output: 2.2, cachedInput: 0.11 },
+  'glm-4.7-flashx': { input: 0.07, output: 0.4, cachedInput: 0.01 },
+  'glm-4.7-flash': { input: 0, output: 0, cachedInput: 0 },
+  'glm-4.6': { input: 0.6, output: 2.2, cachedInput: 0.11 },
+  'glm-4.5': { input: 0.6, output: 2.2, cachedInput: 0.11 },
+  'glm-4.5-x': { input: 2.2, output: 8.9, cachedInput: 0.45 },
+  'glm-4.5-air': { input: 0.2, output: 1.1, cachedInput: 0.03 },
+  'glm-4.5-airx': { input: 1.1, output: 4.5, cachedInput: 0.22 },
+  'glm-4.5-flash': { input: 0, output: 0, cachedInput: 0 },
+  'glm-4-32b-0414-128k': { input: 0.1, output: 0.1 },
+};
+
 export class ZAIProvider extends OpenAIProvider {
   override name = 'zai';
 
@@ -62,12 +89,7 @@ export class ZAIProvider extends OpenAIProvider {
         console.error('\n[ZAI Debug] Response received successfully');
         console.error(`  Choices returned: ${response.choices.length}`);
         console.error(`  Model used: ${response.model}`);
-        if (response.usage) {
-          console.error(`  Token Usage:`);
-          console.error(`    Prompt tokens: ${response.usage.prompt_tokens}`);
-          console.error(`    Completion tokens: ${response.usage.completion_tokens}`);
-          console.error(`    Total tokens: ${response.usage.total_tokens}`);
-        }
+        logZAIUsageDebug(response.model ?? this.model, response.usage);
       }
 
       const message = response.choices[0]?.message?.content;
@@ -144,6 +166,13 @@ export class ZAIProvider extends OpenAIProvider {
         throw new Error('ZAI returned empty response');
       }
 
+      if (isDebug) {
+        console.error('\n[ZAI Debug] Response received successfully');
+        console.error(`  Choices returned: ${response.choices.length}`);
+        console.error(`  Model used: ${response.model}`);
+        logZAIUsageDebug(response.model ?? this.model, response.usage);
+      }
+
       return message.trim();
     } catch (error) {
       if (isDebug) {
@@ -161,4 +190,68 @@ export class ZAIProvider extends OpenAIProvider {
     // ZAI API keys don't have a specific format requirement
     return !!(this.apiKey && this.apiKey.trim());
   }
+}
+
+function logZAIUsageDebug(model: string, usage?: ZAIUsage | null): void {
+  if (!usage) {
+    return;
+  }
+
+  const promptTokens = usage.prompt_tokens ?? 0;
+  const completionTokens = usage.completion_tokens ?? 0;
+  const cachedTokens = usage.prompt_tokens_details?.cached_tokens ?? 0;
+  const estimatedCost = estimateZAICost(model, usage);
+
+  console.error(`  Token Usage:`);
+  console.error(`    Prompt tokens: ${promptTokens}`);
+  console.error(`    Completion tokens: ${completionTokens}`);
+  console.error(`    Total tokens: ${promptTokens + completionTokens}`);
+  if (cachedTokens > 0) {
+    console.error(`    Cached prompt tokens: ${cachedTokens}`);
+  }
+
+  if (estimatedCost === null) {
+    console.error(`    Estimated cost: unavailable (no pricing data for ${model})`);
+    return;
+  }
+
+  console.error(`    Estimated cost: $${formatEstimatedCost(estimatedCost)}`);
+}
+
+function estimateZAICost(model: string, usage?: ZAIUsage | null): number | null {
+  if (!usage) {
+    return null;
+  }
+
+  const pricing = ZAI_PRICING_PER_MILLION[model.toLowerCase()];
+  if (!pricing) {
+    return null;
+  }
+
+  const promptTokens = usage.prompt_tokens ?? 0;
+  const completionTokens = usage.completion_tokens ?? 0;
+  const cachedTokens = Math.min(
+    usage.prompt_tokens_details?.cached_tokens ?? 0,
+    promptTokens
+  );
+  const uncachedPromptTokens = promptTokens - cachedTokens;
+  const cachedInputRate = pricing.cachedInput ?? pricing.input;
+
+  return (
+    (uncachedPromptTokens / 1_000_000) * pricing.input +
+    (cachedTokens / 1_000_000) * cachedInputRate +
+    (completionTokens / 1_000_000) * pricing.output
+  );
+}
+
+function formatEstimatedCost(cost: number): string {
+  if (cost === 0) {
+    return '0.000000';
+  }
+
+  if (cost < 0.01) {
+    return cost.toFixed(6);
+  }
+
+  return cost.toFixed(4);
 }

@@ -33,26 +33,26 @@ AI-powered conventional commit message and PR description generator that analyze
 
 ```bash
 # Using npm
-npm install -g ai-conventional-commit
+npm install -g aic-commit
 
 # Using bun
-bun install -g ai-conventional-commit
+bun install -g aic-commit
 
 # Using yarn
-yarn global add ai-conventional-commit
+yarn global add aic-commit
 ```
 
 ### Per-project Installation
 
 ```bash
 # Using npm
-npm install --save-dev ai-conventional-commit
+npm install --save-dev aic-commit
 
 # Using bun
-bun add --dev ai-conventional-commit
+bun add --dev aic-commit
 
 # Using yarn
-yarn add --dev ai-conventional-commit
+yarn add --dev aic-commit
 ```
 
 ## Quick Start
@@ -669,7 +669,7 @@ If you see "Good signature", your commits will show as "Verified" on GitHub.
 
 ### Command Line Interface
 
-The main CLI command is `aic-commit` (or `ai-conventional-commit`).
+The main CLI command is `aic-commit` (or `aic-commit`).
 
 ### Exit Codes
 
@@ -705,8 +705,8 @@ Common errors and solutions:
 
 ```bash
 # Clone the repository
-git clone https://github.com/jhubbardsf/ai-conventional-commit.git
-cd ai-conventional-commit
+git clone https://github.com/jhubbardsf/aic-commit.git
+cd aic-commit
 
 # Install dependencies
 bun install

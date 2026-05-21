@@ -15,14 +15,18 @@ export interface GHPRResult {
 /**
  * Check if gh CLI is installed and authenticated
  */
-export async function validateGHCLI(): Promise<{ valid: boolean; error?: string }> {
+export async function validateGHCLI(): Promise<{
+  valid: boolean;
+  error?: string;
+}> {
   // Check if gh is installed
   try {
     await execGH(['--version']);
   } catch {
     return {
       valid: false,
-      error: 'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/',
+      error:
+        'GitHub CLI (gh) is not installed. Install it from https://cli.github.com/',
     };
   }
 
@@ -85,10 +89,21 @@ export async function pushBranch(branchName: string): Promise<void> {
 /**
  * Create a PR using gh CLI
  */
-export async function createPR(options: GHPRCreateOptions): Promise<GHPRResult> {
+export async function createPR(
+  options: GHPRCreateOptions
+): Promise<GHPRResult> {
   const { base, title, body, open = true } = options;
 
-  const args = ['pr', 'create', '--base', base, '--title', title, '--body', body];
+  const args = [
+    'pr',
+    'create',
+    '--base',
+    base,
+    '--title',
+    title,
+    '--body',
+    body,
+  ];
 
   // gh pr create doesn't open browser by default, --web opens it
   if (open) {
@@ -101,7 +116,8 @@ export async function createPR(options: GHPRCreateOptions): Promise<GHPRResult> 
     // Parse the PR URL from stdout
     const url = stdout.trim();
     const prNumberMatch = url.match(/\/pull\/(\d+)/);
-    const number = prNumberMatch && prNumberMatch[1] ? parseInt(prNumberMatch[1], 10) : 0;
+    const number =
+      prNumberMatch && prNumberMatch[1] ? parseInt(prNumberMatch[1], 10) : 0;
 
     return { url, number };
   } catch (error) {

@@ -1,4 +1,8 @@
-export { loadPRTemplate, getDefaultPRTemplate, getPRTemplate } from './template.js';
+export {
+  loadPRTemplate,
+  getDefaultPRTemplate,
+  getPRTemplate,
+} from './template.js';
 export {
   createPRSystemPrompt,
   createPRUserPrompt,

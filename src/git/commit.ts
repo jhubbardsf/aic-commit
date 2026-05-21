@@ -8,7 +8,9 @@ export async function createCommit(message: string): Promise<void> {
 
   try {
     // Check if commit signing is enabled in git config
-    const signingEnabled = await git.raw(['config', '--get', 'commit.gpgsign']).catch(() => 'false');
+    const signingEnabled = await git
+      .raw(['config', '--get', 'commit.gpgsign'])
+      .catch(() => 'false');
 
     if (signingEnabled.trim() === 'true') {
       // Use -S flag to sign the commit, respecting git's signing configuration

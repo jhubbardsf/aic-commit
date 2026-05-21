@@ -19,8 +19,18 @@ import {
 } from './git/commit.js';
 import { logger, LogLevel } from './utils/logger.js';
 import { validatePatterns } from './utils/patterns.js';
-import { getPRTemplate, generatePRDescription, generatePRContent } from './pr/index.js';
-import { validateGHCLI, checkExistingPR, createPR, needsPush, pushBranch } from './gh/index.js';
+import {
+  getPRTemplate,
+  generatePRDescription,
+  generatePRContent,
+} from './pr/index.js';
+import {
+  validateGHCLI,
+  checkExistingPR,
+  createPR,
+  needsPush,
+  pushBranch,
+} from './gh/index.js';
 import type { CLIOptions, PRCLIOptions } from './types/index.js';
 
 const program = new Command();
@@ -96,7 +106,10 @@ program
   .description('Generate AI-powered PR description for current branch')
   .option('-b, --base <branch>', 'Base branch to compare against', 'dev')
   .option('-d, --description <text>', 'Additional context for the AI')
-  .option('-c, --create', 'Create PR via GitHub CLI (requires gh to be installed)')
+  .option(
+    '-c, --create',
+    'Create PR via GitHub CLI (requires gh to be installed)'
+  )
   .option('--no-open', 'Do not open PR in browser (only with --create)')
   .option('--no-clipboard', 'Do not copy to clipboard')
   .option(
@@ -378,7 +391,9 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
       } catch (error) {
         // Clipboard may not be available in CI environments
         if (!options.quiet && !options.json) {
-          logger.warn('Could not copy to clipboard (clipboard may not be available)');
+          logger.warn(
+            'Could not copy to clipboard (clipboard may not be available)'
+          );
         }
       }
     }

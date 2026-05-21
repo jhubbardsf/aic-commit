@@ -36,11 +36,9 @@ OUTPUT FORMAT:
 /**
  * Creates the user prompt containing the diff and optional context
  */
-export function createPRUserPrompt(
-  diff: string,
-  description?: string
-): string {
-  let prompt = 'Please generate a PR description for the following changes:\n\n';
+export function createPRUserPrompt(diff: string, description?: string): string {
+  let prompt =
+    'Please generate a PR description for the following changes:\n\n';
 
   if (description) {
     prompt += `ADDITIONAL CONTEXT FROM AUTHOR:\n${description}\n\n`;

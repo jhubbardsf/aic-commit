@@ -127,5 +127,4 @@ export class OpenAIProvider extends BaseAIProvider {
 
     return true;
   }
-
 }

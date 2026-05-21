@@ -116,5 +116,4 @@ export class AnthropicProvider extends BaseAIProvider {
 
     return true;
   }
-
 }

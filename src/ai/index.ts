@@ -54,7 +54,6 @@ export function createAIProvider(config: ConfigType): AIProvider {
   }
 }
 
-
 /**
  * Get all supported providers
  */
@@ -78,7 +77,6 @@ export function validateProviderConfig(config: ConfigType): {
       }. Supported providers: ${getSupportedProviders().join(', ')}`,
     };
   }
-
 
   // Check API key availability
   const apiKey = getApiKey(config, config.provider);

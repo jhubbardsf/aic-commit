@@ -51,7 +51,8 @@ export class ZAIProvider extends OpenAIProvider {
     choices?: number,
     detailed?: boolean
   ): Promise<string> {
-    const isDebug = process.env.DEBUG === 'true' || process.env.AIC_DEBUG === 'true';
+    const isDebug =
+      process.env.DEBUG === 'true' || process.env.AIC_DEBUG === 'true';
 
     if (isDebug) {
       console.error('\n[ZAI Debug] Request Details:');
@@ -60,7 +61,9 @@ export class ZAIProvider extends OpenAIProvider {
       console.error(`  Model: ${this.model}`);
       console.error(`  Max Tokens: ${this.maxTokens}`);
       console.error(`  Temperature: ${this.temperature}`);
-      console.error(`  API Key: ${this.apiKey.substring(0, 10)}...${this.apiKey.substring(this.apiKey.length - 4)}`);
+      console.error(
+        `  API Key: ${this.apiKey.substring(0, 10)}...${this.apiKey.substring(this.apiKey.length - 4)}`
+      );
       console.error(`  Choices: ${choices || 1}`);
       console.error(`  Detailed: ${detailed || false}`);
     }
@@ -115,13 +118,15 @@ export class ZAIProvider extends OpenAIProvider {
         if (error.message.includes('429')) {
           throw new Error(
             `ZAI API error (429): ${error.message}\n` +
-            `Provider: ${this.name}, Model: ${this.model}, Base URL: https://api.z.ai/api/paas/v4/\n` +
-            `This might indicate: insufficient balance, rate limiting, or wrong API endpoint.\n` +
-            `Enable debug mode with: export AIC_DEBUG=true`
+              `Provider: ${this.name}, Model: ${this.model}, Base URL: https://api.z.ai/api/paas/v4/\n` +
+              `This might indicate: insufficient balance, rate limiting, or wrong API endpoint.\n` +
+              `Enable debug mode with: export AIC_DEBUG=true`
           );
         }
         if (error.message.includes('invalid_api_key')) {
-          throw new Error(`Invalid ZAI API key. Please check your ZAI_API_KEY environment variable.`);
+          throw new Error(
+            `Invalid ZAI API key. Please check your ZAI_API_KEY environment variable.`
+          );
         }
         if (error.message.includes('model_not_found')) {
           throw new Error(
@@ -211,14 +216,19 @@ function logZAIUsageDebug(model: string, usage?: ZAIUsage | null): void {
   }
 
   if (estimatedCost === null) {
-    console.error(`    Estimated cost: unavailable (no pricing data for ${model})`);
+    console.error(
+      `    Estimated cost: unavailable (no pricing data for ${model})`
+    );
     return;
   }
 
   console.error(`    Estimated cost: $${formatEstimatedCost(estimatedCost)}`);
 }
 
-function estimateZAICost(model: string, usage?: ZAIUsage | null): number | null {
+function estimateZAICost(
+  model: string,
+  usage?: ZAIUsage | null
+): number | null {
   if (!usage) {
     return null;
   }

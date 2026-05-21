@@ -1,13 +1,10 @@
 {
-  "name": "ai-conventional-commit",
+  "name": "aic-commit",
   "version": "1.0.0",
   "description": "AI-powered conventional commit message generator",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
   "type": "module",
   "bin": {
-    "aic-commit": "./dist/cli.js",
-    "ai-conventional-commit": "./dist/cli.js"
+    "aic-commit": "./dist/cli.js"
   },
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target node --format esm --minify --external commander --external simple-git --external openai --external @anthropic-ai/sdk --external @google/generative-ai --external cosmiconfig --external minimatch --external zod --external picocolors --external clipboardy",
@@ -15,8 +12,8 @@
     "dev": "bun run src/cli.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "format": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
     "test": "bun test",
     "type-check": "tsc --noEmit",
     "validate": "bun run lint && bun run format:check && bun run type-check && bun run test",
@@ -31,10 +28,22 @@
     "cli",
     "openai",
     "anthropic",
-    "gemini"
+    "gemini",
+    "zai",
+    "pr-description",
+    "pull-request",
+    "commit-message"
   ],
-  "author": "",
+  "author": "Josh Hubbard <josh@joshuahubbard.dev>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhubbardsf/aic-commit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jhubbardsf/aic-commit/issues"
+  },
+  "homepage": "https://github.com/jhubbardsf/aic-commit#readme",
   "engines": {
     "node": ">=16.0.0"
   },
@@ -68,9 +77,6 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "prettier": "^3.2.4"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   },
   "files": [
     "dist/**/*",

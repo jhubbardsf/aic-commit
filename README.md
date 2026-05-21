@@ -1,6 +1,6 @@
 # AI Conventional Commit
 
-AI-powered conventional commit message generator that analyzes your staged changes and creates meaningful commit messages following the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+AI-powered conventional commit message and PR description generator that analyzes your staged changes or branch diffs and creates meaningful commit messages, pull request descriptions, and GitHub pull requests.
 
 ## Table of Contents
 
@@ -11,15 +11,15 @@ AI-powered conventional commit message generator that analyzes your staged chang
 - [Configuration](#configuration)
 - [AI Providers](#ai-providers)
 - [Examples](#examples)
-- [PR Description Generation](#pr-description-generation)
+- [PR Description and Creation](#pr-description-and-creation)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 
 ## Features
 
-- **AI-Powered**: Uses OpenAI, Anthropic, or Google Gemini to generate intelligent commit messages
+- **AI-Powered**: Supports OpenAI, Anthropic, Google Gemini, and ZAI
 - **Conventional Commits**: Follows the conventional commit format automatically
-- **PR Descriptions**: Generate comprehensive pull request descriptions from branch diffs
+- **PR Descriptions and Creation**: Generate comprehensive pull request descriptions from branch diffs or create a GitHub PR directly
 - **Context-Aware**: Analyzes your actual code changes to generate relevant messages
 - **Configurable**: Support for config files, environment variables, and CLI options
 - **Smart Filtering**: Exclude files with glob patterns
@@ -68,6 +68,9 @@ export ANTHROPIC_API_KEY="sk-ant-your-key-here"
 
 # For Google Gemini
 export GEMINI_API_KEY="your-key-here"
+
+# For ZAI
+export ZAI_API_KEY="your-key-here"
 ```
 
 2. **Stage your changes:**
@@ -144,19 +147,23 @@ aic-commit --config ./my-config.json
 
 ```bash
 # Provider selection
-export AIC_PROVIDER=openai           # openai, anthropic, gemini
-export AIC_MODEL=gpt-4              # Model name
+export AIC_PROVIDER=openai            # openai, anthropic, gemini, zai
+export AIC_MODEL=gpt-4                # Model name
 
 # API Keys
-export OPENAI_API_KEY=sk-...        # OpenAI API key
-export ANTHROPIC_API_KEY=sk-ant-... # Anthropic API key
-export GEMINI_API_KEY=...           # Google Gemini API key
+export OPENAI_API_KEY=sk-...         # OpenAI API key
+export ANTHROPIC_API_KEY=sk-ant-...  # Anthropic API key
+export GEMINI_API_KEY=...            # Google Gemini API key
+export ZAI_API_KEY=...               # ZAI API key
 
 # Optional settings
-export AIC_MAX_TOKENS=150           # Maximum tokens for response
-export AIC_TEMPERATURE=0.3          # AI temperature (0.0-2.0)
-export AIC_DEFAULT_DESCRIPTION="..."# Default description
+export AIC_MAX_TOKENS=150            # Maximum tokens for response
+export AIC_TEMPERATURE=0.3           # AI temperature (0.0-2.0)
+export AIC_DEFAULT_DESCRIPTION="..." # Default description
+export AIC_DEBUG=true                # ZAI provider-level request/usage logging
 ```
+
+Note: the top-level `aic-commit --provider` flag currently accepts `openai`, `anthropic`, and `gemini`. To use ZAI for commit-message generation, set `AIC_PROVIDER=zai` or put `"provider": "zai"` in config. The `pr` subcommand does accept `--provider zai` directly.
 
 ### Configuration Files
 
@@ -178,6 +185,7 @@ Create a `.aiccommitrc.json` file in your project root or home directory:
 
 Supported config file formats:
 
+- `.aiccommitrc`
 - `.aiccommitrc.json`
 - `.aiccommitrc.js`
 - `.aiccommit.config.js`
@@ -190,11 +198,25 @@ Configuration is loaded in this order (highest to lowest priority):
 
 1. CLI flags
 2. Environment variables
-3. Local config file (project directory)
-4. Global config file (`~/.config/aiccommit/config.json`)
-5. Default values
+3. Config file discovered by `cosmiconfig` (or an explicit `--config` path)
+4. Default values
 
 ## AI Providers
+
+The commands do not all expose providers in exactly the same way:
+
+- `aic-commit --provider` supports `openai`, `anthropic`, and `gemini`
+- `aic-commit pr --provider` supports `openai`, `anthropic`, `gemini`, and `zai`
+- `AIC_PROVIDER` and config files support all four: `openai`, `anthropic`, `gemini`, and `zai`
+
+Default models in code:
+
+| Provider | Default model |
+| -------- | ------------- |
+| OpenAI | `gpt-4` |
+| Anthropic | `claude-3-sonnet-20240229` |
+| Gemini | `gemini-2.5-flash-lite` |
+| ZAI | `glm-4.6` |
 
 ### OpenAI (Default)
 
@@ -211,7 +233,7 @@ export AIC_MODEL=gpt-4  # or gpt-3.5-turbo, gpt-4o, etc.
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-your-key-here"
 export AIC_PROVIDER=anthropic
-export AIC_MODEL=claude-3-5-sonnet-20241022  # or claude-3-haiku-20240307 for speed
+export AIC_MODEL=claude-3-sonnet-20240229  # default in code
 ```
 
 **Available Models:** See [Anthropic Models Documentation](https://docs.anthropic.com/en/docs/models-overview) for the current list of supported Claude models.
@@ -221,12 +243,28 @@ export AIC_MODEL=claude-3-5-sonnet-20241022  # or claude-3-haiku-20240307 for sp
 ```bash
 export GEMINI_API_KEY="your-key-here"
 export AIC_PROVIDER=gemini
-export AIC_MODEL=gemini-2.5-flash-lite  # fastest option
+export AIC_MODEL=gemini-2.5-flash-lite  # default in code
 ```
 
 **Available Models:** See [Gemini Models Documentation](https://ai.google.dev/gemini-api/docs/models) for the current list of supported models.
 
 **Performance Tip:** For fastest commit generation, use `gemini-2.5-flash-lite` with 250-300 tokens.
+
+### ZAI
+
+```bash
+export ZAI_API_KEY="your-key-here"
+export AIC_PROVIDER=zai
+export AIC_MODEL=glm-5.1  # or glm-5, glm-4.6, etc.
+```
+
+**Available Models:** See the [Z.AI model documentation](https://docs.z.ai/guides/llm/glm-5) and [pricing documentation](https://docs.z.ai/guides/overview/pricing) for current model IDs and rates.
+
+Notes:
+
+- For commit-message generation, use `AIC_PROVIDER=zai` or config; the top-level `--provider` flag does not currently accept `zai`
+- The `pr` subcommand does accept `--provider zai`
+- With `AIC_DEBUG=true` or `DEBUG=true`, ZAI logs request details, token usage, and an estimated request cost when pricing data is available
 
 ## Examples
 
@@ -303,6 +341,9 @@ aic-commit --provider gemini --max-tokens 300
 
 # Use latest Gemini 2.5 models with adequate tokens
 aic-commit --provider gemini --model gemini-2.5-pro --max-tokens 400
+
+# Use ZAI via environment variables or config
+AIC_PROVIDER=zai AIC_MODEL=glm-5.1 aic-commit --dry-run
 ```
 
 ### Multiple Choice Options
@@ -424,15 +465,21 @@ aic-commit --detailed --max-tokens 600
 # Detailed commits: 400-800 tokens (depending on complexity)
 ```
 
-## PR Description Generation
+## PR Description and Creation
 
-Generate AI-powered pull request descriptions by comparing your current branch against a base branch.
+Generate AI-powered pull request descriptions by comparing your current branch against a base branch, or create a GitHub PR directly with an AI-generated title and body.
 
 ### Basic Usage
 
 ```bash
 # Generate PR description (compares to dev by default)
 aic-commit pr
+
+# Create a GitHub PR with AI-generated title and body
+aic-commit pr --create
+
+# Create a PR without opening the browser
+aic-commit pr --create --no-open
 
 # Compare to a different base branch
 aic-commit pr --base main
@@ -445,6 +492,9 @@ aic-commit pr --no-clipboard
 
 # JSON output for scripting
 aic-commit pr --json
+
+# Use ZAI for PR generation
+aic-commit pr --provider zai --model glm-5.1
 ```
 
 ### PR Subcommand Options
@@ -453,7 +503,9 @@ aic-commit pr --json
 | ----------------------------- | ----------------------------------------------- |
 | `-b, --base <branch>`         | Base branch to compare against (default: `dev`) |
 | `-d, --description <text>`    | Additional context for the AI                   |
-| `--no-clipboard`              | Do not copy to clipboard                        |
+| `-c, --create`                | Create a PR with GitHub CLI (`gh`)              |
+| `--no-open`                   | Do not open PR in the browser (`--create` only) |
+| `--no-clipboard`              | Do not copy to clipboard (description mode only) |
 | `-x, --exclude <patterns...>` | File patterns to exclude (glob patterns)        |
 | `--config <path>`             | Path to custom configuration file               |
 | `--model <model>`             | AI model to use (overrides config)              |
@@ -461,8 +513,27 @@ aic-commit pr --json
 | `--max-tokens <number>`       | Maximum tokens for AI response (1-8000)         |
 | `-v, --verbose`               | Show detailed progress information              |
 | `--debug`                     | Show debug information                          |
-| `-q, --quiet`                 | Suppress all output except the PR description   |
+| `-q, --quiet`                 | Suppress progress output                        |
 | `--json`                      | Output results in JSON format                   |
+
+### Creating PRs with GitHub CLI
+
+When you pass `--create`, the tool:
+
+1. Verifies that `gh` is installed and authenticated
+2. Checks whether a PR already exists for the current branch
+3. Pushes the branch to `origin` if it has no upstream or is ahead of remote
+4. Generates a structured PR title and body with the configured AI provider
+5. Runs `gh pr create`
+
+By default, the created PR opens in your browser. Use `--no-open` to skip that behavior.
+
+Requirements for `--create`:
+
+- `gh` must be installed
+- `gh auth login` must already be completed
+- The current branch must be pushable to `origin`
+- There must be commits between the current branch and the selected base branch
 
 ### PR Templates
 
@@ -478,6 +549,8 @@ The tool automatically detects and uses your repository's PR template if one exi
 If no template is found, a sensible default template is used with Summary, Changes, Testing, and Checklist sections.
 
 ### Example Output
+
+Description-only output:
 
 ```
 ## Summary
@@ -505,10 +578,28 @@ Implements OAuth2 authentication flow for third-party integrations, allowing use
 - [ ] Documentation updated as needed
 ```
 
+JSON output when creating a PR:
+
+```json
+{
+  "title": "feat: add OAuth2 support for third-party integrations",
+  "description": "## Summary\n\nImplements OAuth2 authentication flow for third-party integrations...",
+  "url": "https://github.com/owner/repo/pull/123",
+  "number": 123,
+  "provider": "openai",
+  "model": "gpt-4",
+  "baseBranch": "dev",
+  "currentBranch": "feature/oauth2-support",
+  "filesChanged": ["src/auth/oauth.ts", "src/models/user.ts"]
+}
+```
+
 ### Tips
 
 - **Use context**: The `-d` flag helps the AI understand the purpose of your changes beyond what the code diff shows
 - **Token limits**: PR descriptions benefit from higher token limits. Set `AIC_MAX_TOKENS=800` or higher for comprehensive descriptions
+- **GitHub CLI flow**: `--create` creates the PR directly, so clipboard copying is skipped in that mode
+- **Branch pushing**: `--create` will push the current branch to `origin` if needed before creating the PR
 - **Custom templates**: Create a `.github/PULL_REQUEST_TEMPLATE.md` file to ensure consistent PR formats across your team
 
 ## Troubleshooting

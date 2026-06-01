@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aic-commit — AI conventional commits &amp; PR descriptions</title>
+  <meta name="description" content="aic-commit generates conventional commit messages and pull request descriptions from your staged git diff using OpenAI, Anthropic, Gemini, or Z.AI.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jhubbardsf.github.io/aic-commit/">
+  <meta property="og:title" content="aic-commit — AI conventional commits & PR descriptions">
+  <meta property="og:description" content="AI-generated conventional commits and PR descriptions, straight from your staged diff. Works with OpenAI, Anthropic, Gemini, and Z.AI.">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="aic-commit — AI conventional commits & PR descriptions">
+  <meta name="twitter:description" content="AI-generated conventional commits and PR descriptions, straight from your staged diff. Works with OpenAI, Anthropic, Gemini, and Z.AI.">
+
+  <link rel="canonical" href="https://jhubbardsf.github.io/aic-commit/">
+
+  <!-- Inline SVG favicon: orange terminal with a green check -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0a'/%3E%3Crect x='3.5' y='3.5' width='25' height='25' rx='5' fill='none' stroke='%23f97316' stroke-width='2'/%3E%3Cpath d='M9 11l4 4-4 4' fill='none' stroke='%23f97316' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M11 22l8 0' fill='none' stroke='%23f97316' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M21 13.5l3 3 5-6' fill='none' stroke='%2322c55e' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-2: #1a1a1a;
+      --border: #262626;
+      --border-2: #27272a;
+      --text: #fafafa;
+      --text-muted: #a1a1a1;
+      --text-dim: #71717a;
+      --accent: #f97316;
+      --accent-dim: #ea580c;
+      --accent-bright: #fb923c;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --blue: #60a5fa;
+      --red: #ef4444;
+      --code-bg: #18181b;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    a { color: var(--accent); }
+
+    /* Hero */
+    .hero {
+      padding: 80px 0 56px;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.2rem, 6vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      color: var(--accent);
+    }
+
+    .hero .tagline {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+
+    /* Install box */
+    .install-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .install-box code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    .install-box .prefix {
+      color: var(--text-dim);
+      user-select: none;
+    }
+
+    .install-alt {
+      margin: 16px auto 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+
+    .copy-btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover { background: var(--accent-dim); }
+    .copy-btn.copied { background: var(--green); }
+
+    /* Section scaffolding */
+    section.bordered { border-top: 1px solid var(--border); }
+
+    .section-pad { padding: 60px 0; }
+
+    h2.section-title {
+      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+    }
+
+    p.section-sub {
+      text-align: center;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 36px;
+      font-size: 1rem;
+    }
+
+    /* Terminal */
+    .terminal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .terminal-header {
+      background: var(--surface-2);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f57; }
+    .terminal-dot.yellow { background: #febc2e; }
+    .terminal-dot.green { background: #28c840; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .terminal-body {
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13.5px;
+      line-height: 1.85;
+      min-height: 420px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    @media (max-width: 600px) {
+      .terminal-body { font-size: 11.5px; min-height: 360px; }
+    }
+
+    .t-prompt { color: var(--accent); }
+    .t-cmd { color: var(--text); }
+    .t-spin { color: var(--blue); }
+    .t-check { color: var(--green); }
+    .t-info { color: var(--blue); }
+    .t-time { color: var(--text-dim); }
+    .t-msg { color: var(--text); }
+    .t-type { color: var(--accent); }
+    .t-files { color: var(--text-muted); }
+    .t-dim { color: var(--text-dim); }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.05em;
+      background: var(--accent);
+      vertical-align: text-bottom;
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Before / After comparison */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+    }
+
+    .comparison-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .comparison-card.before { border-color: var(--red); }
+    .comparison-card.after { border-color: var(--green); }
+
+    .comparison-card h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+
+    .comparison-card.before h3 { color: var(--red); }
+    .comparison-card.after h3 { color: var(--green); }
+
+    .comparison-card h3 code {
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: none;
+      letter-spacing: 0;
+      color: inherit;
+    }
+
+    .comparison-card pre {
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .comparison-card code { color: var(--text-secondary); }
+    .comparison-card .comment { color: var(--text-dim); }
+    .comparison-card .cmd { color: var(--text-muted); }
+    .comparison-card .cc-type { color: var(--accent); }
+    .comparison-card .cc-msg { color: var(--text); }
+
+    /* Features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .feature-icon {
+      font-size: 1.75rem;
+      margin-bottom: 12px;
+    }
+
+    .feature-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.9375rem;
+    }
+
+    .feature-card code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+      color: var(--accent-bright);
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    /* Providers table */
+    .providers-table {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .providers-table th,
+    .providers-table td {
+      text-align: left;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+
+    .providers-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .providers-table tr:last-child td { border-bottom: none; }
+
+    .providers-table .prov-name { font-weight: 600; color: var(--text); }
+
+    .providers-table code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85em;
+      color: var(--accent-bright);
+    }
+
+    .caveat {
+      max-width: 640px;
+      margin: 24px auto 0;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .caveat code {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-bright);
+      font-size: 0.9em;
+    }
+
+    /* Quick start steps */
+    .steps {
+      max-width: 680px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .step-num {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #0a0a0a;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+
+    .step-body { flex: 1; min-width: 0; }
+    .step-body p { margin-bottom: 8px; }
+
+    .step-body pre {
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 12px 14px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+    .step-body pre .prompt { color: var(--text-dim); }
+
+    /* PR section */
+    .pr-card {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+
+    .pr-card pre {
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.8;
+      margin-top: 16px;
+    }
+    .pr-card pre .prompt { color: var(--text-dim); }
+    .pr-card pre .flag { color: var(--accent-bright); }
+    .pr-card pre .comment { color: var(--text-dim); }
+    .pr-card p { color: var(--text-muted); }
+    .pr-card p code,
+    section p code {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-bright);
+      font-size: 0.9em;
+    }
+
+    /* CTA */
+    .cta { text-align: center; }
+
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-dim); }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--text-muted); }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer a { color: var(--text); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    footer .pairs { margin-top: 10px; color: var(--text-dim); }
+    footer .pairs a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="badge">OpenAI · Anthropic · Gemini · Z.AI</div>
+      <h1>aic-commit</h1>
+      <p class="tagline">
+        AI-generated conventional commits and PR descriptions, straight from your staged diff.
+      </p>
+      <div class="install-box">
+        <code><span class="prefix">$ </span>npm install -g aic-commit</code>
+        <button class="copy-btn" onclick="copyInstall(this)">Copy</button>
+      </div>
+      <p class="install-alt">bun install -g aic-commit&nbsp;&nbsp;·&nbsp;&nbsp;yarn global add aic-commit</p>
+    </section>
+
+    <!-- Terminal Demo -->
+    <section class="terminal-section section-pad bordered">
+      <h2 class="section-title">See it in action</h2>
+      <p class="section-sub">A real <code style="font-family:'JetBrains Mono',monospace;color:var(--accent-bright)">aic-commit</code> run, replayed step by step.</p>
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">zsh — aic-commit</span>
+        </div>
+        <div class="terminal-body" id="terminal"></div>
+      </div>
+    </section>
+
+    <!-- Before / After -->
+    <section class="comparison section-pad bordered">
+      <h2 class="section-title">A git history you can actually read</h2>
+      <p class="section-sub">Stop committing "stuff" and "wip". Let your staged diff describe itself.</p>
+      <div class="comparison-grid">
+        <div class="comparison-card before">
+          <h3>The usual <code>git commit</code></h3>
+          <pre><code><span class="cmd">$ git commit -m "stuff"</span>
+<span class="cmd">$ git commit -m "fix"</span>
+<span class="cmd">$ git commit -m "wip"</span>
+<span class="cmd">$ git commit -m "更新"</span>
+
+<span class="comment"># Six months later: good luck</span>
+<span class="comment"># reading this history.</span></code></pre>
+        </div>
+        <div class="comparison-card after">
+          <h3>With aic-commit</h3>
+          <pre><code><span class="cc-type">feat(auth):</span> <span class="cc-msg">add login form with validation</span>
+<span class="cc-type">fix(api):</span> <span class="cc-msg">handle null payment response</span>
+<span class="cc-type">refactor(parser):</span> <span class="cc-msg">simplify token lookup</span>
+<span class="cc-type">docs:</span> <span class="cc-msg">document the pr subcommand</span>
+
+<span class="comment"># A changelog that writes itself.</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features section-pad bordered">
+      <h2 class="section-title">What it does</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>Multiple AI providers</h3>
+          <p>OpenAI, Anthropic, Gemini, and Z.AI. Pick the model that fits your budget and quality bar.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>Conventional Commits</h3>
+          <p>Enforces the spec: feat, fix, docs, style, refactor, perf, test, chore, ci, build, revert.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔀</div>
+          <h3>PR descriptions</h3>
+          <p>Generate a full pull request body and open a real GitHub PR with <code>aic-commit pr --create</code>.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎚️</div>
+          <h3>Choices &amp; detail</h3>
+          <p>Offer multiple commit suggestions, or use <code>--detailed</code> for multi-line messages with bullets.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧹</div>
+          <h3>Smart diff filtering</h3>
+          <p>Excludes lockfiles and build noise via glob patterns, so the model sees the changes that matter.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚙️</div>
+          <h3>Configurable</h3>
+          <p>Config file, environment variables, and CLI flags with clear precedence. Tune it once, forget it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Providers -->
+    <section class="providers section-pad bordered">
+      <h2 class="section-title">Providers &amp; default models</h2>
+      <p class="section-sub">Bring your own API key. Each provider has a sensible default model.</p>
+      <table class="providers-table">
+        <thead>
+          <tr><th>Provider</th><th>Default model</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="prov-name">OpenAI</td><td><code>gpt-4</code></td></tr>
+          <tr><td class="prov-name">Anthropic</td><td><code>claude-3-sonnet-20240229</code></td></tr>
+          <tr><td class="prov-name">Google Gemini</td><td><code>gemini-2.5-flash-lite</code></td></tr>
+          <tr><td class="prov-name">Z.AI</td><td><code>glm-4.6</code></td></tr>
+        </tbody>
+      </table>
+      <div class="caveat">
+        One thing to know: the top-level <code>aic-commit --provider</code> flag accepts
+        <code>openai</code>, <code>anthropic</code>, or <code>gemini</code>. To use Z.AI for commits,
+        set <code>AIC_PROVIDER=zai</code> (env or config). The <code>pr</code> subcommand's
+        <code>--provider</code> flag does accept <code>zai</code> directly.
+      </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section class="quickstart section-pad bordered">
+      <h2 class="section-title">Quick start</h2>
+      <p class="section-sub">Three steps from a staged diff to a clean commit.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <p>Set an API key for your provider of choice.</p>
+            <pre><span class="prompt">$ </span>export OPENAI_API_KEY=sk-...</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <p>Stage the changes you want to commit.</p>
+            <pre><span class="prompt">$ </span>git add .</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <p>Run it. Review the suggested message and commit.</p>
+            <pre><span class="prompt">$ </span>aic-commit</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PR generation -->
+    <section class="pr-section section-pad bordered">
+      <h2 class="section-title">Pull requests, written for you</h2>
+      <p class="section-sub">From staged commits to a finished PR without leaving the terminal.</p>
+      <div class="pr-card">
+        <p><code>aic-commit pr</code> reads your branch diff and writes a complete pull request description.
+        Add <code>--create</code> and it opens a real GitHub PR through the <code>gh</code> CLI, with an AI-generated
+        title and body, auto-detecting your repository's PR template.</p>
+        <pre><span class="comment"># Generate a PR description from the branch diff</span>
+<span class="prompt">$ </span>aic-commit pr
+
+<span class="comment"># Generate it and open the PR on GitHub via gh</span>
+<span class="prompt">$ </span>aic-commit pr <span class="flag">--create</span></pre>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta section-pad bordered">
+      <h2 class="section-title">Get started</h2>
+      <p class="section-sub">Install it, point it at an API key, and let your commits write themselves.</p>
+      <div class="cta-buttons">
+        <a href="https://github.com/jhubbardsf/aic-commit" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="https://github.com/jhubbardsf/aic-commit#readme" class="btn btn-secondary">
+          Read the docs
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      Made by <a href="https://github.com/jhubbardsf">@jhubbardsf</a> · MIT License
+      <div class="pairs">
+        Pairs well with
+        <a href="https://github.com/jhubbardsf/sopsx">sopsx</a>
+        and
+        <a href="https://github.com/jhubbardsf/aws-sso-refresh">aws-sso-refresh</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function copyInstall(btn) {
+      const cmd = 'npm install -g aic-commit';
+      navigator.clipboard.writeText(cmd).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    /* ----------------------------------------------------------------
+       Animated terminal demo
+       Faithfully replays a default `aic-commit` run:
+         - command is "typed"
+         - each progress step shows a spinning hourglass + "doing..."
+           line, then MORPHS IN PLACE into a green "✅ done" line
+           (mirrors the tool's carriage-return overwrite)
+         - the generated commit message + files block is revealed
+         - the final commit-success line
+       Then a pause, a clear, and a loop.
+       Pure vanilla JS. No libraries, no network.
+    ---------------------------------------------------------------- */
+    (function () {
+      const term = document.getElementById('terminal');
+      if (!term) return;
+
+      const TS = '10:42:13';           // info/success timestamp
+      const TS2 = '10:42:14';          // final success timestamp
+      const SPIN = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏']; // braille spinner
+
+      // Each progress step: the transient "doing" verb and the resolved line.
+      const STEPS = [
+        { doing: 'Validating git repository',  done: 'Repository validated' },
+        { doing: 'Loading configuration',      done: 'Configuration loaded' },
+        { doing: 'Validating API configuration', done: 'API configuration validated' },
+        { doing: 'Analyzing staged changes',   done: 'Changes analyzed' },
+        { doing: 'Initializing AI provider',   done: 'openai provider initialized' },
+        { doing: 'Generating commit message',  done: 'Commit message generated' },
+      ];
+
+      // Timing knobs (ms). Tuned so a full cycle is ~10-11s.
+      const TYPE_SPEED = 55;
+      const SPIN_FRAME = 90;
+      const STEP_WORK = 620;     // how long a spinner "works" before resolving
+      const AFTER_DONE = 130;    // small beat after a line resolves
+      const REVEAL_GAP = 420;
+      const END_PAUSE = 4200;    // pause on the finished screen before looping
+
+      let spinTimer = null;
+
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+      function el(html) {
+        const d = document.createElement('div');
+        d.innerHTML = html;
+        return d;
+      }
+
+      function appendLine(html) {
+        const line = el(html);
+        term.appendChild(line);
+        return line;
+      }
+
+      function blank() {
+        const d = document.createElement('div');
+        d.innerHTML = '&nbsp;';
+        term.appendChild(d);
+        return d;
+      }
+
+      // Type a command after a fresh `$` prompt.
+      async function typeCommand(text) {
+        const line = appendLine('<span class="t-prompt">$</span> <span class="t-cmd"></span><span class="cursor"></span>');
+        const cmdSpan = line.querySelector('.t-cmd');
+        const cursor = line.querySelector('.cursor');
+        for (let i = 0; i < text.length; i++) {
+          cmdSpan.textContent += text[i];
+          await sleep(TYPE_SPEED);
+        }
+        cursor.remove(); // settle the line (no trailing cursor on completed commands)
+      }
+
+      // Show a spinning hourglass "doing..." line, then morph it in place
+      // into the green checkmark "done" line.
+      async function runStep(step) {
+        const line = appendLine(
+          '<span class="t-spin">' + SPIN[0] + '</span> <span class="t-dim">' + step.doing + '...</span>'
+        );
+        const spinSpan = line.querySelector('.t-spin');
+
+        let frame = 0;
+        spinTimer = setInterval(() => {
+          frame = (frame + 1) % SPIN.length;
+          spinSpan.textContent = SPIN[frame];
+        }, SPIN_FRAME);
+
+        await sleep(STEP_WORK);
+
+        clearInterval(spinTimer);
+        spinTimer = null;
+
+        // Morph in place: same line element, swapped contents -> green check.
+        line.innerHTML =
+          '<span class="t-check">✅</span> <span class="t-msg">' + step.done + '</span>';
+
+        await sleep(AFTER_DONE);
+      }
+
+      async function run() {
+        term.innerHTML = '';
+
+        // 1) Typed commands
+        await typeCommand('git add .');
+        await typeCommand('aic-commit');
+        await sleep(REVEAL_GAP);
+
+        // 2) Progress steps (spinner -> morph -> check)
+        for (const step of STEPS) {
+          await runStep(step);
+        }
+
+        await sleep(REVEAL_GAP);
+
+        // 3) Info / success block (with dim [HH:MM:SS] timestamps)
+        appendLine(
+          '<span class="t-time">[' + TS + ']</span> ' +
+          '<span class="t-info">ℹ️</span>  Generated commit message:'
+        );
+        blank();
+        appendLine(
+          '<span class="t-type">feat(auth):</span> <span class="t-msg">add login form with validation</span>'
+        );
+        blank();
+        appendLine(
+          '<span class="t-time">[' + TS + ']</span> ' +
+          '<span class="t-info">ℹ️</span>  Files to be committed: ' +
+          '<span class="t-files">src/auth/login.tsx, src/auth/validation.ts</span>'
+        );
+
+        await sleep(REVEAL_GAP);
+
+        // 4) Final progress step + success
+        await runStep({ doing: 'Creating commit', done: 'Commit created successfully' });
+        appendLine(
+          '<span class="t-time">[' + TS2 + ']</span> ' +
+          '<span class="t-check">✅</span> <span class="t-msg">Commit created with AI-generated message</span>'
+        );
+
+        // 5) Idle prompt + blinking cursor, then pause and loop
+        appendLine('<span class="t-prompt">$</span> <span class="cursor"></span>');
+
+        await sleep(END_PAUSE);
+        run();
+      }
+
+      // Kick off once fonts/layout settle.
+      run();
+    })();
+  </script>
+</body>
+</html>

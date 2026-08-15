@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { OpenAIProvider } from './openai.js';
+import { OpenAIProvider, isContextLengthError } from './openai.js';
 
 interface ZAIUsage {
   prompt_tokens?: number;
@@ -35,9 +35,10 @@ export class ZAIProvider extends OpenAIProvider {
     apiKey: string,
     model: string = 'glm-4.6',
     maxTokens: number = 150,
-    temperature: number = 0.3
+    temperature: number = 0.3,
+    maxDiffChars?: number
   ) {
-    super(apiKey, model, maxTokens, temperature);
+    super(apiKey, model, maxTokens, temperature, maxDiffChars);
     // Override the client with ZAI's base URL
     this.client = new OpenAI({
       apiKey: this.apiKey,
@@ -115,6 +116,15 @@ export class ZAIProvider extends OpenAIProvider {
 
       if (error instanceof Error) {
         // Handle specific ZAI/OpenAI errors
+        if (isContextLengthError(error.message)) {
+          throw new Error(
+            `ZAI rejected the request: the prompt is too large for ${this.model} ` +
+              `(z.ai error 1261: "Prompt exceeds max length"). The staged diff is ` +
+              `bigger than the model's input limit.\n` +
+              `Fixes: stage fewer files, lower --max-diff-chars (current: ${this.maxDiffChars}), ` +
+              `or reduce --max-tokens.`
+          );
+        }
         if (error.message.includes('429')) {
           throw new Error(
             `ZAI API error (429): ${error.message}\n` +
@@ -185,6 +195,13 @@ export class ZAIProvider extends OpenAIProvider {
       }
 
       if (error instanceof Error) {
+        if (isContextLengthError(error.message)) {
+          throw new Error(
+            `ZAI rejected the request: the diff is too large for ${this.model} ` +
+              `(z.ai error 1261: "Prompt exceeds max length"). ` +
+              `Lower --max-diff-chars (current: ${this.maxDiffChars}) or reduce --max-tokens.`
+          );
+        }
         throw new Error(`ZAI API error: ${error.message}`);
       }
       throw new Error('Unknown ZAI error');

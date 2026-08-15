@@ -1,4 +1,5 @@
 import type { AIProvider } from '../../types/index.js';
+import { truncateDiff, DEFAULT_MAX_DIFF_CHARS } from '../../git/diff.js';
 
 export abstract class BaseAIProvider implements AIProvider {
   abstract name: string;
@@ -6,17 +7,20 @@ export abstract class BaseAIProvider implements AIProvider {
   protected model: string;
   protected maxTokens: number;
   protected temperature: number;
+  protected maxDiffChars: number;
 
   constructor(
     apiKey: string,
     model: string,
     maxTokens: number = 150,
-    temperature: number = 0.3
+    temperature: number = 0.3,
+    maxDiffChars: number = DEFAULT_MAX_DIFF_CHARS
   ) {
     this.apiKey = apiKey;
     this.model = model;
     this.maxTokens = maxTokens;
     this.temperature = temperature;
+    this.maxDiffChars = maxDiffChars;
   }
 
   abstract generateCommitMessage(
@@ -169,6 +173,10 @@ Generate ONLY the commit message, no explanations or additional text.`;
    * Create a user prompt with the diff and optional description
    */
   protected createUserPrompt(diff: string, description?: string): string {
+    // Bound the diff so large change-sets can't blow past a provider's input
+    // limit (e.g. z.ai GLM "Prompt exceeds max length"). See truncateDiff.
+    const boundedDiff = truncateDiff(diff, this.maxDiffChars);
+
     let prompt =
       'Please generate a conventional commit message for the following changes:\n\n';
 
@@ -176,7 +184,7 @@ Generate ONLY the commit message, no explanations or additional text.`;
       prompt += `Additional context: ${description}\n\n`;
     }
 
-    prompt += `Git diff:\n${diff}`;
+    prompt += `Git diff:\n${boundedDiff}`;
 
     return prompt;
   }

@@ -68,6 +68,19 @@ program
     }
   )
   .option(
+    '--max-diff-chars <number>',
+    'Maximum diff characters sent to the AI; larger diffs are truncated (overrides config)',
+    (value) => {
+      const parsed = parseInt(value, 10);
+      if (isNaN(parsed) || parsed < 1000 || parsed > 1000000) {
+        throw new Error(
+          'max-diff-chars must be a number between 1000 and 1000000'
+        );
+      }
+      return parsed;
+    }
+  )
+  .option(
     '--choices <number>',
     'Generate multiple commit message options to choose from (2-5)',
     (value) => {
@@ -130,6 +143,19 @@ program
       const parsed = parseInt(value, 10);
       if (isNaN(parsed) || parsed < 1 || parsed > 8000) {
         throw new Error('max-tokens must be a number between 1 and 8000');
+      }
+      return parsed;
+    }
+  )
+  .option(
+    '--max-diff-chars <number>',
+    'Maximum diff characters sent to the AI; larger diffs are truncated (overrides config)',
+    (value) => {
+      const parsed = parseInt(value, 10);
+      if (isNaN(parsed) || parsed < 1000 || parsed > 1000000) {
+        throw new Error(
+          'max-diff-chars must be a number between 1000 and 1000000'
+        );
       }
       return parsed;
     }
@@ -215,6 +241,7 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
     model: options.model,
     provider: options.provider,
     maxTokens: options.maxTokens,
+    maxDiffChars: options.maxDiffChars,
     exclude: options.exclude,
     verbose: options.verbose,
     debug: options.debug,
@@ -302,7 +329,8 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
         diffResult.diff,
         template,
         currentBranch,
-        options.description
+        options.description,
+        config.maxDiffChars
       );
       logger.progressDone('PR content generated');
     } catch (error) {
@@ -357,7 +385,8 @@ async function runPRCommand(options: PRCLIOptions): Promise<void> {
         diffResult.diff,
         template,
         currentBranch,
-        options.description
+        options.description,
+        config.maxDiffChars
       );
       logger.progressDone('PR description generated');
     } catch (error) {

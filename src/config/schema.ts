@@ -4,6 +4,7 @@ export const ConfigSchema = z.object({
   provider: z.enum(['openai', 'anthropic', 'gemini', 'zai']).default('openai'),
   model: z.string().optional(),
   maxTokens: z.number().min(1).max(8000).default(150),
+  maxDiffChars: z.number().min(1000).max(1000000).default(48000),
   temperature: z.number().min(0).max(2).default(0.3),
   excludePatterns: z.array(z.string()).default([]),
   defaultDescription: z.string().optional(),

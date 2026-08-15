@@ -1,3 +1,5 @@
+import { truncateDiff, DEFAULT_MAX_DIFF_CHARS } from '../git/diff.js';
+
 /**
  * Creates the system prompt for PR description generation
  */
@@ -35,8 +37,17 @@ OUTPUT FORMAT:
 
 /**
  * Creates the user prompt containing the diff and optional context
+ *
+ * The diff is bounded by `maxDiffChars` so large branches can't exceed a
+ * provider's input limit (e.g. z.ai GLM "Prompt exceeds max length").
  */
-export function createPRUserPrompt(diff: string, description?: string): string {
+export function createPRUserPrompt(
+  diff: string,
+  description?: string,
+  maxDiffChars: number = DEFAULT_MAX_DIFF_CHARS
+): string {
+  const boundedDiff = truncateDiff(diff, maxDiffChars);
+
   let prompt =
     'Please generate a PR description for the following changes:\n\n';
 
@@ -44,7 +55,7 @@ export function createPRUserPrompt(diff: string, description?: string): string {
     prompt += `ADDITIONAL CONTEXT FROM AUTHOR:\n${description}\n\n`;
   }
 
-  prompt += `GIT DIFF:\n\`\`\`diff\n${diff}\n\`\`\``;
+  prompt += `GIT DIFF:\n\`\`\`diff\n${boundedDiff}\n\`\`\``;
 
   return prompt;
 }

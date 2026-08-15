@@ -154,6 +154,7 @@ aic-commit --config ./my-config.json
 | `--model <model>`             | AI model to use (overrides config)             |
 | `--provider <provider>`       | AI provider: `openai`, `anthropic`, `gemini`   |
 | `--max-tokens <number>`       | Maximum tokens for AI response (1-8000)        |
+| `--max-diff-chars <number>`   | Cap diff sent to the AI; larger diffs are truncated (1000-1000000, default 48000) |
 | `--choices <number>`          | Generate multiple options to choose from (2-5) |
 | `--detailed`                  | Generate detailed multi-line commit messages   |
 | `--dry-run`                   | Generate message without committing            |
@@ -181,6 +182,7 @@ export ZAI_API_KEY=...                # Z.AI
 
 # Optional settings
 export AIC_MAX_TOKENS=150             # Maximum tokens for response
+export AIC_MAX_DIFF_CHARS=48000       # Cap diff sent to the AI (larger diffs truncated)
 export AIC_TEMPERATURE=0.3            # AI temperature (0.0-2.0)
 export AIC_DEFAULT_DESCRIPTION="..."  # Default description
 export AIC_DEBUG=true                 # Z.AI provider-level request/usage logging
@@ -195,6 +197,7 @@ Create a `.aiccommitrc.json` in your project root or home directory:
   "provider": "openai",
   "model": "gpt-4",
   "maxTokens": 150,
+  "maxDiffChars": 48000,
   "temperature": 0.3,
   "excludePatterns": ["*.test.js", "*.spec.ts", "docs/**", "*.md"],
   "defaultDescription": "Code changes for feature development",
@@ -496,6 +499,25 @@ Provider-specific recommendations:
 
 </details>
 
+<details>
+<summary><b>Troubleshooting large diffs ("Prompt exceeds max length")</b></summary>
+
+If you stage a very large change-set, some providers reject the request because the diff is too big for the model's input limit. Z.AI returns `400 Prompt exceeds max length` (error code `1261`); OpenAI returns `context_length_exceeded`.
+
+To prevent this, the diff sent to the AI is capped at **48,000 characters** by default and the rest is truncated (the most informative part of the diff, the head, is kept). Tune the cap with `--max-diff-chars`, `AIC_MAX_DIFF_CHARS`, or `maxDiffChars` in your config:
+
+```bash
+# Send more of the diff on a large-context model
+aic-commit --max-diff-chars 200000
+
+# Send less on a small-context model, or to cut cost/latency
+aic-commit --max-diff-chars 16000
+```
+
+If you still hit the limit, stage fewer files per commit or lower `--max-tokens` (a large output reservation eats into the input budget on some providers).
+
+</details>
+
 ## PR Description and Creation
 
 Generate an AI pull request description by comparing your current branch against a base branch, or open a GitHub PR directly with an AI-generated title and body.
@@ -542,6 +564,7 @@ aic-commit pr --provider zai --model glm-5.1
 | `--model <model>`             | AI model to use (overrides config)               |
 | `--provider <provider>`       | AI provider: `openai`, `anthropic`, `gemini`, `zai` |
 | `--max-tokens <number>`       | Maximum tokens for AI response (1-8000)          |
+| `--max-diff-chars <number>`   | Cap diff sent to the AI; larger diffs are truncated (1000-1000000, default 48000) |
 | `-v, --verbose`               | Show detailed progress information               |
 | `--debug`                     | Show debug information                           |
 | `-q, --quiet`                 | Suppress progress output                         |

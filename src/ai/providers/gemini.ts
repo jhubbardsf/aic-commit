@@ -9,9 +9,10 @@ export class GeminiProvider extends BaseAIProvider {
     apiKey: string,
     model: string = 'gemini-1.5-flash',
     maxTokens: number = 150,
-    temperature: number = 0.3
+    temperature: number = 0.3,
+    maxDiffChars?: number
   ) {
-    super(apiKey, model, maxTokens, temperature);
+    super(apiKey, model, maxTokens, temperature, maxDiffChars);
     this.client = new GoogleGenerativeAI(this.apiKey);
   }
 

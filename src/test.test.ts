@@ -5,7 +5,12 @@ import {
 } from './git/commit.js';
 import { isFileExcluded, filterExcludedFiles } from './utils/patterns.js';
 import { LogLevel, Logger } from './utils/logger.js';
-import { isNoiseFile, optimizeDiff } from './git/diff.js';
+import {
+  isNoiseFile,
+  optimizeDiff,
+  truncateDiff,
+  DEFAULT_MAX_DIFF_CHARS,
+} from './git/diff.js';
 
 test('validateConventionalCommit - valid messages', () => {
   const validMessages = [
@@ -153,6 +158,46 @@ index 1234567..abcdefg 100644
   expect(optimized.split('\n').length).toBeLessThan(
     mockDiff.split('\n').length
   );
+});
+
+test('truncateDiff - returns diff unchanged when under budget', () => {
+  const smallDiff = 'diff --git a/a.ts b/a.ts\n+const x = 1;';
+  expect(truncateDiff(smallDiff, 48000)).toBe(smallDiff);
+});
+
+test('truncateDiff - truncates when over budget and stays within limit', () => {
+  // Build a large multi-line diff that blows past a small budget
+  const header = 'diff --git a/big.ts b/big.ts\n@@ -1,1000 +1,1000 @@\n';
+  const body = Array.from(
+    { length: 5000 },
+    (_, i) => `+const value${i} = ${i};`
+  ).join('\n');
+  const bigDiff = header + body;
+  const maxChars = 4000;
+
+  const result = truncateDiff(bigDiff, maxChars);
+
+  // Final string must respect the budget
+  expect(result.length).toBeLessThanOrEqual(maxChars);
+  // Must signal that it was truncated
+  expect(result).toContain('diff truncated');
+  // Must preserve the head of the diff (most informative part for a commit)
+  expect(result).toContain('diff --git a/big.ts b/big.ts');
+  expect(result).toContain('const value0 = 0;');
+});
+
+test('truncateDiff - uses the default budget when none is provided', () => {
+  const oversized = 'x'.repeat(DEFAULT_MAX_DIFF_CHARS + 5000);
+  const result = truncateDiff(oversized);
+  expect(result.length).toBeLessThanOrEqual(DEFAULT_MAX_DIFF_CHARS);
+  expect(result).toContain('diff truncated');
+});
+
+test('truncateDiff - disabled for non-positive or non-finite budgets', () => {
+  const diff = 'diff --git a/a.ts b/a.ts\n+const x = 1;';
+  expect(truncateDiff(diff, 0)).toBe(diff);
+  expect(truncateDiff(diff, -1)).toBe(diff);
+  expect(truncateDiff(diff, Number.NaN)).toBe(diff);
 });
 
 test('Token optimization - whitespace compression', () => {

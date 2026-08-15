@@ -35,6 +35,56 @@ export function isNoiseFile(filename: string): boolean {
 }
 
 /**
+ * Default ceiling for the number of diff characters sent to an AI provider.
+ *
+ * Most providers tolerate large prompts, but some (notably z.ai's GLM endpoint)
+ * enforce a stricter max input length and reject oversized prompts with HTTP 400
+ * ("Prompt exceeds max length"). ~48k characters is roughly 12k tokens, which is
+ * far more than enough signal to describe a change while staying comfortably
+ * under every provider's input limit. Configurable via `maxDiffChars`.
+ */
+export const DEFAULT_MAX_DIFF_CHARS = 48000;
+
+/**
+ * Bound the size of a diff before it is embedded in an AI prompt.
+ *
+ * Returns the diff unchanged when it fits within `maxChars`. Otherwise it keeps
+ * the head of the diff (the most informative part for a commit message), cuts on
+ * a line boundary where possible, and appends a clear marker so both the model
+ * and the user know the diff was shortened. The returned string is guaranteed to
+ * be no longer than `maxChars`.
+ *
+ * A non-positive or non-finite `maxChars` disables truncation entirely.
+ */
+export function truncateDiff(
+  diff: string,
+  maxChars: number = DEFAULT_MAX_DIFF_CHARS
+): string {
+  if (!Number.isFinite(maxChars) || maxChars <= 0 || diff.length <= maxChars) {
+    return diff;
+  }
+
+  const originalLength = diff.length;
+  const marker =
+    `\n\n[... diff truncated to fit the model input limit ` +
+    `(original ${originalLength} characters). Stage fewer files or raise ` +
+    `maxDiffChars to send the full diff. ...]`;
+
+  // Reserve room for the marker so the final string respects the budget.
+  const sliceLength = Math.max(0, maxChars - marker.length);
+  let truncated = diff.slice(0, sliceLength);
+
+  // Prefer cutting on a line boundary for a cleaner, parseable diff, but only
+  // when a boundary exists reasonably close to the cut point.
+  const lastNewline = truncated.lastIndexOf('\n');
+  if (lastNewline > sliceLength * 0.5) {
+    truncated = truncated.slice(0, lastNewline);
+  }
+
+  return truncated + marker;
+}
+
+/**
  * Remove whitespace-only changes and compress whitespace in diff
  */
 export function optimizeDiff(diff: string): string {

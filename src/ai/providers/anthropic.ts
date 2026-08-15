@@ -9,9 +9,10 @@ export class AnthropicProvider extends BaseAIProvider {
     apiKey: string,
     model: string = 'claude-3-sonnet-20240229',
     maxTokens: number = 150,
-    temperature: number = 0.3
+    temperature: number = 0.3,
+    maxDiffChars?: number
   ) {
-    super(apiKey, model, maxTokens, temperature);
+    super(apiKey, model, maxTokens, temperature, maxDiffChars);
     this.client = new Anthropic({
       apiKey: this.apiKey,
     });

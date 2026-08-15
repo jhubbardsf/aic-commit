@@ -13,6 +13,7 @@ const ENV_VAR_MAPPING = {
   provider: 'AIC_PROVIDER',
   model: 'AIC_MODEL',
   maxTokens: 'AIC_MAX_TOKENS',
+  maxDiffChars: 'AIC_MAX_DIFF_CHARS',
   temperature: 'AIC_TEMPERATURE',
   defaultDescription: 'AIC_DEFAULT_DESCRIPTION',
 } as const;
@@ -32,6 +33,7 @@ function createDefaultConfig(): Partial<ConfigType> {
   return {
     provider: 'openai',
     maxTokens: 150,
+    maxDiffChars: 48000,
     temperature: 0.3,
     excludePatterns: getDefaultExclusions(),
   };
@@ -100,6 +102,14 @@ function loadEnvironmentConfig(): Partial<ConfigType> {
     }
   }
 
+  const maxDiffCharsEnv = process.env[ENV_VAR_MAPPING.maxDiffChars];
+  if (maxDiffCharsEnv) {
+    const maxDiffChars = Number.parseInt(maxDiffCharsEnv, 10);
+    if (Number.isFinite(maxDiffChars) && maxDiffChars > 0) {
+      envConfig.maxDiffChars = maxDiffChars;
+    }
+  }
+
   const temperatureEnv = process.env[ENV_VAR_MAPPING.temperature];
   if (temperatureEnv) {
     const temperature = Number.parseFloat(temperatureEnv);
@@ -149,6 +159,9 @@ function applyCLIOptions(
   }
   if (cliOptions.maxTokens) {
     updatedConfig.maxTokens = cliOptions.maxTokens;
+  }
+  if (cliOptions.maxDiffChars) {
+    updatedConfig.maxDiffChars = cliOptions.maxDiffChars;
   }
   if (cliOptions.description) {
     updatedConfig.defaultDescription = cliOptions.description;

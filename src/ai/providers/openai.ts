@@ -9,9 +9,10 @@ export class OpenAIProvider extends BaseAIProvider {
     apiKey: string,
     model: string = 'gpt-4',
     maxTokens: number = 150,
-    temperature: number = 0.3
+    temperature: number = 0.3,
+    maxDiffChars?: number
   ) {
-    super(apiKey, model, maxTokens, temperature);
+    super(apiKey, model, maxTokens, temperature, maxDiffChars);
     this.client = new OpenAI({
       apiKey: this.apiKey,
     });
@@ -73,6 +74,13 @@ export class OpenAIProvider extends BaseAIProvider {
             `OpenAI model '${this.model}' not found. Please check the model name.`
           );
         }
+        if (isContextLengthError(error.message)) {
+          throw new Error(
+            `The staged diff is too large for ${this.model}'s context window. ` +
+              `Stage fewer files, lower --max-diff-chars (current: ${this.maxDiffChars}), ` +
+              `or use a model with a larger context window.`
+          );
+        }
         throw new Error(`OpenAI API error: ${error.message}`);
       }
       throw new Error('Unknown OpenAI error');
@@ -110,6 +118,13 @@ export class OpenAIProvider extends BaseAIProvider {
         if (error.message.includes('invalid_api_key')) {
           throw new Error('Invalid OpenAI API key. Please check your API key.');
         }
+        if (isContextLengthError(error.message)) {
+          throw new Error(
+            `The diff is too large for ${this.model}'s context window. ` +
+              `Lower --max-diff-chars (current: ${this.maxDiffChars}) or use a ` +
+              `model with a larger context window.`
+          );
+        }
         throw new Error(`OpenAI API error: ${error.message}`);
       }
       throw new Error('Unknown OpenAI error');
@@ -127,4 +142,21 @@ export class OpenAIProvider extends BaseAIProvider {
 
     return true;
   }
+}
+
+/**
+ * Detect "prompt/diff is too big for the model" errors across OpenAI-compatible
+ * endpoints. Covers OpenAI's `context_length_exceeded`, the generic "maximum
+ * context length" phrasing, and z.ai's GLM rejection (code 1261, message
+ * "Prompt exceeds max length").
+ */
+export function isContextLengthError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('context_length_exceeded') ||
+    normalized.includes('maximum context length') ||
+    normalized.includes('exceeds max length') ||
+    normalized.includes('prompt exceeds') ||
+    message.includes('1261')
+  );
 }

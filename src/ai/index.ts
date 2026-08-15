@@ -22,7 +22,8 @@ export function createAIProvider(config: ConfigType): AIProvider {
         apiKey,
         config.model,
         config.maxTokens,
-        config.temperature
+        config.temperature,
+        config.maxDiffChars
       );
 
     case 'anthropic':
@@ -30,7 +31,8 @@ export function createAIProvider(config: ConfigType): AIProvider {
         apiKey,
         config.model,
         config.maxTokens,
-        config.temperature
+        config.temperature,
+        config.maxDiffChars
       );
 
     case 'gemini':
@@ -38,7 +40,8 @@ export function createAIProvider(config: ConfigType): AIProvider {
         apiKey,
         config.model,
         config.maxTokens,
-        config.temperature
+        config.temperature,
+        config.maxDiffChars
       );
 
     case 'zai':
@@ -46,7 +49,8 @@ export function createAIProvider(config: ConfigType): AIProvider {
         apiKey,
         config.model,
         config.maxTokens,
-        config.temperature
+        config.temperature,
+        config.maxDiffChars
       );
 
     default:

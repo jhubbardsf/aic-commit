@@ -15,10 +15,11 @@ export async function generatePRDescription(
   diff: string,
   template: string,
   branchName: string,
-  description?: string
+  description?: string,
+  maxDiffChars?: number
 ): Promise<string> {
   const systemPrompt = createPRSystemPrompt(template, branchName);
-  const userPrompt = createPRUserPrompt(diff, description);
+  const userPrompt = createPRUserPrompt(diff, description, maxDiffChars);
 
   // Use the provider's generic generate method with our PR-specific prompts
   const response = await provider.generate(systemPrompt, userPrompt);
@@ -35,10 +36,11 @@ export async function generatePRContent(
   diff: string,
   template: string,
   branchName: string,
-  description?: string
+  description?: string,
+  maxDiffChars?: number
 ): Promise<PRContent> {
   const systemPrompt = createStructuredPRSystemPrompt(template, branchName);
-  const userPrompt = createPRUserPrompt(diff, description);
+  const userPrompt = createPRUserPrompt(diff, description, maxDiffChars);
 
   const response = await provider.generate(systemPrompt, userPrompt);
 

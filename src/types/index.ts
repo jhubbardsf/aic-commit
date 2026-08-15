@@ -18,6 +18,7 @@ export interface Config {
   provider: 'openai' | 'anthropic' | 'gemini' | 'zai';
   model?: string;
   maxTokens?: number;
+  maxDiffChars?: number;
   temperature?: number;
   excludePatterns?: string[];
   defaultDescription?: string;
@@ -36,6 +37,7 @@ export interface CLIOptions {
   model?: string;
   provider?: 'openai' | 'anthropic' | 'gemini' | 'zai';
   maxTokens?: number;
+  maxDiffChars?: number;
   choices?: number;
   detailed?: boolean;
   dryRun?: boolean;
@@ -67,6 +69,7 @@ export interface PRCLIOptions {
   model?: string;
   provider?: 'openai' | 'anthropic' | 'gemini' | 'zai';
   maxTokens?: number;
+  maxDiffChars?: number;
   verbose?: boolean;
   debug?: boolean;
   quiet?: boolean;

@@ -1,6 +1,6 @@
 {
   "name": "aic-commit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI-powered conventional commit message generator",
   "type": "module",
   "bin": {
